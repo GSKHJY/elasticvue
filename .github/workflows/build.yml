@@ -6,7 +6,10 @@ on:
   push:
     tags:
       - 'v*'
-
+      
+permissions:
+  contents: write
+  
 jobs:
 
   build_browser_extensions:
