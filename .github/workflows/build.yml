@@ -8,86 +8,6 @@ on:
       - 'v*'
 
 jobs:
-  build_desktop:
-    name: Build desktop app for ${{ matrix.platform }}
-    strategy:
-      matrix:
-        platform: [ macos-latest, ubuntu-latest, windows-latest ]
-        #platform: [ ubuntu-latest ]
-    runs-on: ${{ matrix.platform }}
-    env:
-      TAURI_PRIVATE_KEY: "${{ secrets.TAURI_PRIVATE_KEY }}"
-      TAURI_KEY_PASSWORD: "${{ secrets.TAURI_KEY_PASSWORD }}"
-
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          cache: yarn
-          node-version: 18
-
-      - run: rustup toolchain install stable
-
-      - run: rustup target add aarch64-apple-darwin
-        if: matrix.platform == 'macos-latest'
-
-      - name: (linux) install dependencies
-        if: matrix.platform == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 librsvg2-dev patchelf
-
-      - name: install app dependencies
-        run: yarn
-
-      - name: build apple-silicon app
-        if: matrix.platform == 'macos-latest'
-        run: yarn tauri:build --target aarch64-apple-darwin
-
-      - name: (mac arm) upload .dmg
-        if: matrix.platform == 'macos-latest'
-        uses: actions/upload-artifact@v3
-        with:
-          path: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/elasticvue_*_aarch64.dmg
-
-      - run: yarn tauri:build
-
-      - name: (mac) upload .dmg
-        if: matrix.platform == 'macos-latest'
-        uses: actions/upload-artifact@v3
-        with:
-          path: src-tauri/target/release/bundle/dmg/elasticvue_*_x64.dmg
-
-      - name: (linux) upload .deb
-        if: matrix.platform == 'ubuntu-latest'
-        uses: actions/upload-artifact@v3
-        with:
-          path: src-tauri/target/release/bundle/deb/elasticvue_*_amd64.deb
-
-      - name: (linux) upload .appimage
-        if: matrix.platform == 'ubuntu-latest'
-        uses: actions/upload-artifact@v3
-        with:
-          path: src-tauri/target/release/bundle/appimage/elasticvue_*_amd64.AppImage
-
-      - name: (linux) upload binary
-        id: linux_upload_binary
-        if: matrix.platform == 'ubuntu-latest'
-        uses: actions/upload-artifact@v3
-        with:
-          path: src-tauri/target/release/elasticvue
-
-      - name: (windows) upload .msi
-        if: matrix.platform == 'windows-latest'
-        uses: actions/upload-artifact@v3
-        with:
-          path: src-tauri/target/release/bundle/msi/elasticvue_*_x64_en-US.msi
-
-      - name: (windows) upload .exe
-        if: matrix.platform == 'windows-latest'
-        uses: actions/upload-artifact@v3
-        with:
-          path: src-tauri/target/release/elasticvue.exe
 
   build_browser_extensions:
     name: Build browser extensions
@@ -101,43 +21,10 @@ jobs:
         with:
           path: artifacts/*.zip
 
-  build_docker:
-    name: Build docker images
-    runs-on: ubuntu-latest
-    steps:
-      - name: Docker hub login
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - uses: actions/checkout@v3
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-
-      - name: Set up Docker buildx
-        uses: docker/setup-buildx-action@v2
-
-      - uses: martinbeentjes/npm-get-version-action@v1.3.1
-        id: package-version
-
-      - name: Build and push
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
-          file: docker/Dockerfile_multiarch
-          push: true
-          #tags: cars10/elasticvue:latest,cars10/elasticvue:${{ steps.package-version.outputs.current-version }}
-          tags: cars10/elasticvue:${{ steps.package-version.outputs.current-version }}
-
   publish:
     name: Publish release
     needs:
-      - build_desktop
       - build_browser_extensions
-      - build_docker
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -161,19 +48,7 @@ jobs:
             *This is a beta version. The browser addons are not updated yet, and the `:latest` tag of the docker image still points to the previous stable version.*
             ## Using elasticvue
             This version of elasticvue supports elasticsearch `8.x`, `7.x` and `6.8`.
-            ### Desktop app
-            * [Linux .AppImage](https://github.com/cars10/elasticvue/releases/download/${{ github.ref_name }}/elasticvue_${{ steps.package-version.outputs.current-version }}_amd64.AppImage) / [Linux .deb](https://github.com/cars10/elasticvue/releases/download/${{ github.ref_name }}/elasticvue_${{ steps.package-version.outputs.current-version }}_amd64.deb)
-            * [Mac x68 .dmg](https://github.com/cars10/elasticvue/releases/download/${{ github.ref_name }}/elasticvue_${{ steps.package-version.outputs.current-version }}_x64.dmg) / [Mac aarch64 .dmg](https://github.com/cars10/elasticvue/releases/download/${{ github.ref_name }}/elasticvue_${{ steps.package-version.outputs.current-version }}_aarch64.dmg)
-            * [Windows .msi](https://github.com/cars10/elasticvue/releases/download/${{ github.ref_name }}/elasticvue_${{ steps.package-version.outputs.current-version }}_x64_en-US.msi)
-            
-            If you get an error message when running the mac version of elasticvue (`"elasticvue" is damaged and can't be opened`) you might have to run (This happens because the builds are not signed (yet):
-            ```
-            xattr -c elasticvue_1.0.0_aarch64-fixed.dmg
-            ```
             ### Browser extension
             * [Google Chrome](https://chrome.google.com/webstore/detail/elasticvue/hkedbapjpblbodpgbajblpnlpenaebaa)
             * [Mozilla Firefox](https://addons.mozilla.org/en-US/firefox/addon/elasticvue/)
             * [Microsoft Edge](https://microsoftedge.microsoft.com/addons/detail/elasticvue/geifniocjfnfilcbeloeidajlfmhdlgo)
-            ### Other
-            * [Docker](https://hub.docker.com/r/cars10/elasticvue)
-            * [Hosted](https://app.elasticvue.com)
