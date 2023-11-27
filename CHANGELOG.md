@@ -1,12 +1,18 @@
 # Changelog
 
+## 1.0.0-beta-7
+* don't create duplicates in rest history when sending the same request again, fixes [#162][i162]
+
+[i162]: https://github.com/cars10/elasticvue/issues/162
+
 ## 1.0.0-beta-6
 
 * adds confirm when closing indices, fixes [#153][f153]
 * link rest api docs to current version docs, fixes [#163][f163]
 * sort shards by health, fixes [#161][i161]
 * fixes index table filter
-* replaces `ace` editor with `codemirror-6`
+* replaces `ace` editor with `codemirror 6`
+* more improvements for older versions of elasticvue
 * dependency updates
 
 [f153]: https://github.com/cars10/elasticvue/issues/153
